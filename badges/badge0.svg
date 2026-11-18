@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400">
+  <rect width="400" height="400" rx="36" fill="#0b0b10"/>
+  <rect x="14" y="14" width="372" height="372" rx="28" fill="none" stroke="#ff4d6d" stroke-width="5"/>
+  <rect x="130" y="90" width="140" height="140" rx="20" fill="#000" stroke="#f0b90b" stroke-width="5"/>
+  <text x="200" y="185" font-size="72" text-anchor="middle" fill="#ff4d6d" font-family="sans-serif" font-weight="bold">★</text>
+  <text x="200" y="290" font-size="30" text-anchor="middle" fill="#f2f2f5" font-family="sans-serif" font-weight="bold">FIRST MYTHIC</text>
+  <text x="200" y="326" font-size="17" text-anchor="middle" fill="#9a9aad" font-family="sans-serif">Agent BlackBox Badge</text>
+</svg>

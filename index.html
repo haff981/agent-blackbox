@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent BlackBox — a daily on-chain black box for Agent ID holders</title>
+<style>
+  :root{
+    --bg:#0b0b10; --card:#14141c; --line:#262633; --text:#f2f2f5; --muted:#9a9aad;
+    --gold:#f0b90b; --common:#9a9aad; --rare:#4da3ff; --epic:#b26bff; --legendary:#ff9f2e; --mythic:#ff4d6d;
+  }
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
+  .wrap{max-width:880px;margin:0 auto;padding:24px 16px 64px}
+  header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .logo{display:flex;align-items:center;gap:12px}
+  .cube{width:42px;height:42px;border-radius:10px;background:#000;border:2px solid var(--gold);
+    display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--gold)}
+  h1{font-size:22px;margin:0} .sub{color:var(--muted);font-size:13px;margin-top:2px}
+  button{background:var(--gold);color:#000;border:0;border-radius:10px;padding:11px 18px;
+    font-weight:700;font-size:15px;cursor:pointer}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  button.ghost{background:transparent;color:var(--text);border:1px solid var(--line)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;margin-top:18px}
+  .card h2{margin:0 0 12px;font-size:17px}
+  .muted{color:var(--muted)} .small{font-size:13px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  input{background:#0e0e14;border:1px solid var(--line);border-radius:10px;color:var(--text);
+    padding:11px 12px;font-size:15px;min-width:210px}
+  .boxstage{display:flex;flex-direction:column;align-items:center;padding:18px 0 6px}
+  .blackbox{width:170px;height:170px;border-radius:22px;background:radial-gradient(120% 120% at 30% 20%,#23232f 0%,#050507 60%);
+    border:2px solid #34343f;display:flex;align-items:center;justify-content:center;font-size:64px;
+    transition:all .5s;user-select:none}
+  .blackbox.sealed{border-color:var(--gold);box-shadow:0 0 34px rgba(240,185,11,.28)}
+  .blackbox.open{font-size:30px;font-weight:800;text-align:center;padding:10px;line-height:1.25}
+  .r-Common{color:var(--common)} .r-Rare{color:var(--rare)} .r-Epic{color:var(--epic)}
+  .r-Legendary{color:var(--legendary)} .r-Mythic{color:var(--mythic)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+  .stat{background:#0e0e14;border:1px solid var(--line);border-radius:12px;padding:12px;text-align:center}
+  .stat b{display:block;font-size:20px;margin-bottom:2px}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  td,th{padding:8px 6px;border-bottom:1px solid var(--line);text-align:left}
+  .badge{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:6px 12px;margin:3px;font-size:13px;color:var(--muted)}
+  .badge.on{color:#000;background:var(--gold);border-color:var(--gold);font-weight:700}
+  a{color:var(--gold)} .addr{font-family:monospace;font-size:12.5px;word-break:break-all}
+  .msg{min-height:22px;margin-top:10px;font-size:14px}
+  .err{color:#ff6b6b} .ok{color:#52d273}
+  .prob{display:flex;gap:6px;flex-wrap:wrap}
+  .prob span{border:1px solid var(--line);border-radius:8px;padding:5px 9px;font-size:12.5px}
+  footer{margin-top:26px;color:var(--muted);font-size:12.5px;line-height:1.7}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">
+      <div class="cube">?</div>
+      <div>
+        <h1>Agent BlackBox</h1>
+        <div class="sub">One black box a day. Only Agent ID holders can open it.</div>
+      </div>
+    </div>
+    <button id="connectBtn">Connect Wallet</button>
+  </header>
+
+  <div class="card" id="idCard">
+    <h2>Your Agent ID</h2>
+    <div class="small muted" id="walletLine">Wallet not connected.</div>
+    <div class="row" style="margin-top:12px">
+      <input id="nameInput" placeholder="yourname (without .ai)" maxlength="15">
+      <button class="ghost" id="verifyBtn">Verify my Agent ID</button>
+    </div>
+    <div class="msg" id="idMsg"></div>
+    <div class="small muted">Verification is done fully on-chain: the name is hashed to its token ID and the
+      registry's owner is compared with <b>your</b> connected wallet. This tool only verifies your own ID.</div>
+  </div>
+
+  <div class="card">
+    <h2>Today's Black Box</h2>
+    <div class="boxstage">
+      <div class="blackbox" id="boxEl">?</div>
+      <div class="msg" id="playMsg">Connect your wallet to play.</div>
+      <div class="row" style="margin-top:8px">
+        <button id="sealBtn" disabled>Seal today's box</button>
+        <button id="revealBtn" disabled>Reveal</button>
+      </div>
+    </div>
+    <div class="prob" style="margin-top:14px">
+      <span class="r-Common">Common 50% · 10 pts</span>
+      <span class="r-Rare">Rare 30% · 30 pts</span>
+      <span class="r-Epic">Epic 15% · 100 pts</span>
+      <span class="r-Legendary">Legendary 4% · 400 pts</span>
+      <span class="r-Mythic">Mythic 1% · 2000 pts</span>
+    </div>
+    <div class="small muted" style="margin-top:12px">
+      How it stays fair: sealing locks in a <b>future block</b>. Your rarity is derived from that block's hash,
+      mixed with your address and the day — nobody can know it in advance, nobody can rig it, and anyone can
+      verify it on-chain. Playing is free: the contract never touches your assets, you only pay network gas.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>My Stats</h2>
+    <div class="grid">
+      <div class="stat"><b id="stPoints">–</b>Points</div>
+      <div class="stat"><b id="stBoxes">–</b>Boxes opened</div>
+      <div class="stat"><b id="stStreak">–</b>Day streak</div>
+      <div class="stat"><b id="stMythic">–</b>Mythic pulled</div>
+    </div>
+    <div style="margin-top:14px">
+      <span class="badge" id="bd0">First Mythic</span>
+      <span class="badge" id="bd1">7-day streak</span>
+      <span class="badge" id="bd2">Full set (all 5 rarities)</span>
+    </div>
+    <div class="small muted" style="margin-top:8px">Badges are soulbound NFTs minted by the game contract itself.</div>
+  </div>
+
+  <div class="card">
+    <h2>Leaderboard (on-chain top 10)</h2>
+    <table><thead><tr><th>#</th><th>Player</th><th>Points</th></tr></thead>
+    <tbody id="lbBody"><tr><td colspan="3" class="muted">Loading…</td></tr></tbody></table>
+  </div>
+
+  <footer>
+    Game contract: <span class="addr">0x4Ebb70DC293dC7fDe481886cb08f18e7d4F9c308</span> ·
+    <a href="https://bscscan.com/address/0x4Ebb70DC293dC7fDe481886cb08f18e7d4F9c308" target="_blank">BscScan</a> ·
+    <a href="https://sourcify.dev/#/lookup/0x4Ebb70DC293dC7fDe481886cb08f18e7d4F9c308" target="_blank">Verified source (Sourcify)</a><br>
+    Badge NFT: <span class="addr">0x20b2A08864BdfaBfF47A1CF03E72beC02EbE58aB</span> ·
+    Agent ID registry: <span class="addr">0x60B9262456dE011F7d15a54CdD8c48bAaa8B022F</span><br>
+    The contract has no owner, no admin functions and no custody of user assets. Built for the Binance Wallet Agent ID Hackathon.
+  </footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+<script>
+const GAME = "0x4Ebb70DC293dC7fDe481886cb08f18e7d4F9c308";
+const REGISTRY = "0x60B9262456dE011F7d15a54CdD8c48bAaa8B022F";
+const GAME_ABI = [
+  "function sealBox()",
+  "function revealBox()",
+  "function currentEpoch() view returns (uint256)",
+  "function hasAgentId(address) view returns (bool)",
+  "function boxes(address) view returns (uint64 epoch, uint64 targetBlock, bool isSealed, bool revealed)",
+  "function getPlayer(address) view returns (uint256 totalPoints, uint32 totalBoxes, uint32 currentStreak, uint64 lastPlayedEpoch, uint32[5] rarityCounts, bool[3] badges)",
+  "function getLeaderboard() view returns (address[10] addrs, uint256[10] scores)",
+  "event BoxRevealed(address indexed player, uint256 epoch, uint8 rarity, uint256 points, uint256 totalPoints)",
+  "event BoxRetargeted(address indexed player, uint256 newTargetBlock)"
+];
+const REG_ABI = [
+  "function balanceOf(address) view returns (uint256)",
+  "function ownerOf(uint256) view returns (address)"
+];
+const RARITIES = ["Common","Rare","Epic","Legendary","Mythic"];
+const READ_RPC = "https://bsc-dataseed.binance.org";
+
+let provider, signer, account, game, registry;
+const $ = (id) => document.getElementById(id);
+const short = (a) => a.slice(0,6) + "…" + a.slice(-4);
+
+function setMsg(id, text, cls){ const el = $(id); el.textContent = text; el.className = "msg " + (cls||""); }
+
+async function readGame(){
+  const rp = new ethers.JsonRpcProvider(READ_RPC);
+  return new ethers.Contract(GAME, GAME_ABI, rp);
+}
+
+async function loadLeaderboard(){
+  try{
+    const g = await readGame();
+    const [addrs, scores] = await g.getLeaderboard();
+    const rows = [];
+    for(let i=0;i<10;i++){
+      if(addrs[i] !== ethers.ZeroAddress)
+        rows.push(`<tr><td>${i+1}</td><td class="addr">${short(addrs[i])}</td><td>${scores[i]}</td></tr>`);
+    }
+    $("lbBody").innerHTML = rows.length ? rows.join("") : '<tr><td colspan="3" class="muted">No players yet — be the first.</td></tr>';
+  }catch(e){ $("lbBody").innerHTML = '<tr><td colspan="3" class="muted">Could not load leaderboard.</td></tr>'; }
+}
+
+async function refresh(){
+  if(!account) return;
+  const epoch = Number(await game.currentEpoch());
+  const box = await game.boxes(account);
+  const p = await game.getPlayer(account);
+  $("stPoints").textContent = p.totalPoints;
+  $("stBoxes").textContent = p.totalBoxes;
+  $("stStreak").textContent = p.currentStreak;
+  $("stMythic").textContent = p.rarityCounts[4];
+  for(let i=0;i<3;i++) $("bd"+i).className = "badge" + (p.badges[i] ? " on" : "");
+  const boxEl = $("boxEl");
+  boxEl.className = "blackbox"; boxEl.textContent = "?";
+  $("sealBtn").disabled = true; $("revealBtn").disabled = true;
+  const held = await game.hasAgentId(account);
+  if(!held){ setMsg("playMsg", "This wallet holds no Agent ID — claim one in the Binance App first.", "err"); return; }
+  if(Number(box.epoch) === epoch && box.revealed){
+    setMsg("playMsg", "You already opened today's box. Come back tomorrow!", "ok");
+  } else if(Number(box.epoch) === epoch && box.isSealed){
+    boxEl.className = "blackbox sealed";
+    setMsg("playMsg", "Your box is sealed. Hit Reveal to open it.");
+    $("revealBtn").disabled = false;
+  } else {
+    setMsg("playMsg", "Seal your box, wait a few seconds, then reveal it.");
+    $("sealBtn").disabled = false;
+  }
+}
+
+$("connectBtn").onclick = async () => {
+  if(!window.ethereum){ setMsg("idMsg", "No Web3 wallet found. Open this page in the Binance App Web3 browser or a wallet browser.", "err"); return; }
+  provider = new ethers.BrowserProvider(window.ethereum);
+  const net = await provider.getNetwork();
+  if(net.chainId !== 56n){
+    try{ await window.ethereum.request({ method:"wallet_switchEthereumChain", params:[{ chainId:"0x38" }] }); }
+    catch(e){ setMsg("idMsg", "Please switch your wallet to BNB Chain.", "err"); return; }
+    provider = new ethers.BrowserProvider(window.ethereum);
+  }
+  signer = await provider.getSigner();
+  account = await signer.getAddress();
+  game = new ethers.Contract(GAME, GAME_ABI, signer);
+  registry = new ethers.Contract(REGISTRY, REG_ABI, provider);
+  $("walletLine").innerHTML = "Connected: <span class='addr'>" + account + "</span>";
+  $("connectBtn").textContent = short(account);
+  const held = await game.hasAgentId(account);
+  setMsg("idMsg", held ? "This wallet holds an Agent ID. You can play." : "This wallet holds no Agent ID yet.", held ? "ok" : "err");
+  await refresh();
+};
+
+$("verifyBtn").onclick = async () => {
+  if(!account){ setMsg("idMsg", "Connect your wallet first.", "err"); return; }
+  let name = $("nameInput").value.trim().toLowerCase().replace(/\.ai$/, "");
+  if(!name){ setMsg("idMsg", "Enter your Agent ID name.", "err"); return; }
+  try{
+    const tokenId = BigInt(ethers.keccak256(ethers.toUtf8Bytes(name)));
+    const owner = await registry.ownerOf(tokenId);
+    if(owner.toLowerCase() === account.toLowerCase())
+      setMsg("idMsg", "Verified: " + name + ".ai is your Agent ID.", "ok");
+    else
+      setMsg("idMsg", name + ".ai is not bound to your connected wallet.", "err");
+  }catch(e){
+    setMsg("idMsg", name + ".ai is not bound to your connected wallet.", "err");
+  }
+};
+
+$("sealBtn").onclick = async () => {
+  try{
+    $("sealBtn").disabled = true;
+    setMsg("playMsg", "Sealing… confirm in your wallet.");
+    const tx = await game.sealBox();
+    await tx.wait();
+    setMsg("playMsg", "Sealed! Wait a few seconds, then reveal.", "ok");
+    await refresh();
+  }catch(e){ setMsg("playMsg", "Seal failed: " + (e.reason || e.shortMessage || "rejected"), "err"); await refresh(); }
+};
+
+$("revealBtn").onclick = async () => {
+  try{
+    $("revealBtn").disabled = true;
+    setMsg("playMsg", "Revealing… confirm in your wallet.");
+    const tx = await game.revealBox();
+    const rc = await tx.wait();
+    let rarity = null, pts = null;
+    for(const log of rc.logs){
+      try{
+        const parsed = game.interface.parseLog(log);
+        if(parsed && parsed.name === "BoxRevealed"){ rarity = Number(parsed.args.rarity); pts = parsed.args.points; }
+        if(parsed && parsed.name === "BoxRetargeted"){
+          setMsg("playMsg", "The target block expired, so your box was re-sealed to a new block. Click Reveal again in a few seconds.", "");
+          await refresh(); return;
+        }
+      }catch(_){}
+    }
+    if(rarity !== null){
+      const boxEl = $("boxEl");
+      boxEl.className = "blackbox open r-" + RARITIES[rarity];
+      boxEl.textContent = RARITIES[rarity];
+      setMsg("playMsg", "You pulled " + RARITIES[rarity] + " — +" + pts + " points!", "ok");
+    }
+    await refresh();
+    await loadLeaderboard();
+  }catch(e){
+    const r = e.reason || "";
+    setMsg("playMsg", r === "Too early" ? "Too early — wait a few seconds and try again." : "Reveal failed: " + (r || e.shortMessage || "rejected"), "err");
+    await refresh();
+  }
+};
+
+loadLeaderboard();
+</script>
+</body>
+</html>
